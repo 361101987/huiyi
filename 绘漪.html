@@ -153,6 +153,10 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
 .failed-item .failed-actions{display:flex;gap:6px;margin-top:10px}
 .failed-item .failed-actions button{padding:5px 12px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text2);font-size:11px;cursor:pointer;transition:var(--transition)}
 .failed-item .failed-actions button:hover{border-color:var(--accent);color:var(--accent)}
+.failed-item .failed-actions .polish-btn{display:none;background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;border:none;font-weight:500}
+.failed-item .failed-actions .polish-btn.show{display:inline-flex;align-items:center;gap:4px}
+.failed-item .failed-actions .polish-btn:hover{opacity:.9;color:#fff;border-color:transparent}
+.failed-item .failed-actions .polish-btn:disabled{opacity:.5;cursor:not-allowed}
 .failed-item .failed-remove{width:24px;height:24px;border:none;border-radius:4px;background:none;color:var(--text3);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:13px;flex-shrink:0;transition:var(--transition)}
 .failed-item .failed-remove:hover{color:var(--error);background:rgba(248,113,113,.1)}
 .selection-bar{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:12px 24px;display:flex;gap:12px;align-items:center;box-shadow:0 8px 32px rgba(0,0,0,.4);z-index:500;transition:opacity .3s,transform .3s;white-space:nowrap}
@@ -961,7 +965,7 @@ function renderFailed(){
     const date=new Date(rec.timestamp);
     const ts=`${date.getMonth()+1}/${date.getDate()} ${date.getHours().toString().padStart(2,'0')}:${date.getMinutes().toString().padStart(2,'0')}:${date.getSeconds().toString().padStart(2,'0')}`;
     const statusLabel=rec.status==='violation'?'内容违规':'生成失败';
-    return`<div class="failed-item"><div class="failed-top"><div class="failed-prompt">${escapeHtml(rec.prompt)}</div><button class="failed-remove" data-idx="${i}" title="删除">✕</button></div><div class="failed-reason"><span class="ri">⚠</span><span>${statusLabel}：${escapeHtml(translateError(rec.error))}</span></div><div class="failed-meta"><span>${ts}</span><span class="mt">${rec.model}</span><span class="mt">${rec.size}</span></div><div class="failed-actions"><button data-idx="${i}" class="retry-btn">♻ 重新生成</button><button data-idx="${i}" class="reuse-prompt-btn">📝 复用提示词</button></div></div>`;
+    return`<div class="failed-item"><div class="failed-top"><div class="failed-prompt">${escapeHtml(rec.prompt)}</div><button class="failed-remove" data-idx="${i}" title="删除">✕</button></div><div class="failed-reason"><span class="ri">⚠</span><span>${statusLabel}：${escapeHtml(translateError(rec.error))}</span></div><div class="failed-meta"><span>${ts}</span><span class="mt">${rec.model}</span><span class="mt">${rec.size}</span></div><div class="failed-actions"><button data-idx="${i}" class="retry-btn">♻ 重新生成</button><button data-idx="${i}" class="reuse-prompt-btn">📝 复用提示词</button><button data-idx="${i}" class="polish-btn${rec.status==='violation'?' show':''}" title="润色提示词以规避内容审查">✨ 润色提示词</button></div></div>`;
   }).join('');
 }
 
@@ -1326,6 +1330,8 @@ refInput.addEventListener('change',()=>{addRefImagesFromFiles(refInput.files);re
     if(retryBtn){const rec=state.failedRecords[parseInt(retryBtn.dataset.idx)];if(rec){promptArea.value=rec.prompt;updateCharCount();handleGenerate();}return;}
     const reuseBtn=e.target.closest('.reuse-prompt-btn');
     if(reuseBtn){const rec=state.failedRecords[parseInt(reuseBtn.dataset.idx)];if(rec){promptArea.value=rec.prompt;updateCharCount();promptArea.focus();showToast('已填入提示词','info');}return;}
+    const polishBtn=e.target.closest('.polish-btn');
+    if(polishBtn){dsPolishPrompt(parseInt(polishBtn.dataset.idx));return;}
   });
 
   // DeepSeek toggle
@@ -1459,6 +1465,36 @@ async function dsAutoGenerate(){
     {role:'user',content:txt}
   ]);
   if(result){promptArea.value=result;updateCharCount();showToast('提示词生成完成！','success');}
+}
+
+async function dsPolishPrompt(idx){
+  const rec=state.failedRecords[idx];
+  if(!rec){return;}
+  const dsKey=$('dsApiKey').value.trim();
+  if(!dsKey){showToast('润色需要 DeepSeek API Key，请先填写','error');return;}
+  const polishBtn=document.querySelector(`.polish-btn[data-idx="${idx}"]`);
+  if(polishBtn) polishBtn.disabled=true;
+  showToast('正在润色提示词...','info');
+  try{
+    const r=await fetch(DS_BASE_URL,{
+      method:'POST',
+      headers:{'Content-Type':'application/json','Authorization':'Bearer '+dsKey},
+      body:JSON.stringify({model:'deepseek-chat',messages:[
+        {role:'system',content:'You are an expert at rewriting AI image generation prompts to comply with content policies while preserving the original creative intent. The user\'s prompt was flagged for a content policy violation. Rewrite it to: 1) Remove or rephrase any potentially problematic content 2) Use safe, artistic alternatives (e.g., "revealing" → "elegant", "nude" → "artistic figure study", "violent" → "dramatic") 3) Keep the same visual concept, composition, and style 4) Make it more descriptive with safe, detailed visual language Output ONLY the rewritten English prompt, no explanation, no notes.'},
+        {role:'user',content:'Original prompt that was flagged:\n'+rec.prompt+'\n\nError message: '+rec.error}
+      ],max_tokens:2048,temperature:0.7})
+    });
+    const d=await r.json();
+    if(d.error){showToast('DeepSeek: '+d.error.message,'error');return;}
+    const result=d.choices[0].message.content.trim();
+    if(result){
+      promptArea.value=result;
+      updateCharCount();
+      promptArea.focus();
+      showToast('润色完成，已填入提示词！','success');
+    }
+  }catch(e){showToast('润色请求失败: '+e.message,'error');}
+  finally{if(polishBtn) polishBtn.disabled=false;}
 }
 
 async function dsStructOptimize(){

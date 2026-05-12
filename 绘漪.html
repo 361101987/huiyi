@@ -77,6 +77,14 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
 .prompt-area textarea{width:100%;height:100px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;color:var(--text);font-size:14px;line-height:1.6;resize:vertical;outline:none;transition:border .2s;font-family:inherit}
 .prompt-area textarea:focus{border-color:var(--accent)}
 .prompt-area textarea::placeholder{color:var(--text2)}
+.prompt-area .cn-translate-row{margin-top:8px;position:relative}
+.prompt-area .cn-translate-row label{position:absolute;top:8px;left:12px;font-size:11px;color:var(--accent);font-weight:500;opacity:.7;pointer-events:none;z-index:1}
+.prompt-area .cn-translate-row textarea{height:72px;padding-top:26px;font-size:13px;color:var(--text2);border-style:dashed}
+.prompt-area .cn-translate-row textarea:focus{border-style:solid;color:var(--text)}
+.prompt-area .cn-translate-row textarea.editing{color:var(--text);border-color:var(--accent);border-style:solid}
+.cn-sync-hint{font-size:11px;color:var(--text3);margin-top:4px;display:flex;align-items:center;gap:4px}
+.cn-sync-hint .dot{width:6px;height:6px;border-radius:50%;background:var(--accent);animation:pulse 1.5s infinite}
+@keyframes pulse{0%,100%{opacity:.3}50%{opacity:1}}
 .prompt-actions{display:flex;gap:10px;margin-top:12px;align-items:center;flex-wrap:wrap}
 .generate-btn{flex:1;min-width:120px;padding:12px 20px;background:linear-gradient(135deg,var(--accent),var(--accent2));border:none;border-radius:var(--radius);color:#fff;font-size:14px;font-weight:600;cursor:pointer;transition:var(--transition)}
 .generate-btn:hover{transform:translateY(-1px);box-shadow:0 4px 20px rgba(124,92,252,.4)}
@@ -467,6 +475,11 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
 <div class="main">
   <div class="prompt-area">
     <textarea id="prompt" placeholder="描述你想生成的图片...&#10;&#10;例如：一只穿着宇航服的猫咪在月球上漫步，背景是蓝色地球，电影质感"></textarea>
+    <div class="cn-translate-row">
+      <label>🈶 中文释义</label>
+      <textarea id="cnTranslate" placeholder="提示词的中文翻译会显示在这里…&#10;也可以直接输入中文，自动翻译为英文提示词"></textarea>
+    </div>
+    <div class="cn-sync-hint" id="cnSyncHint" style="display:none"><span class="dot"></span>正在翻译…</div>
     <div class="negative-row">
       <label>🚫 排除</label>
       <input type="text" id="negativePrompt" placeholder="不想出现的元素，如：文字、水印、模糊、多人">
@@ -772,7 +785,7 @@ let state = {
 const $=id=>document.getElementById(id);
 const apiKeyInput=$('apiKey'), keyToggle=$('keyToggle'), modelSelect=$('model');
 const sizeGrid=$('sizeGrid'), refImagesDiv=$('refImages'), refInput=$('refInput');
-const refDropZone=$('refDropZone'), promptArea=$('prompt'), generateBtn=$('generateBtn');
+const refDropZone=$('refDropZone'), promptArea=$('prompt'), cnTranslate=$('cnTranslate'), cnSyncHint=$('cnSyncHint'), generateBtn=$('generateBtn');
 const charCount=$('charCount'), enhanceBtn=$('enhanceBtn'), batchCount=$('batchCount');
 const tasksSection=$('tasksSection'), tasksGrid=$('tasksGrid'), taskCount=$('taskCount');
 const historyGrid=$('historyGrid'), viewer=$('viewer'), viewerImg=$('viewerImg');
@@ -1199,6 +1212,42 @@ function bindEvents(){
   promptArea.addEventListener('keydown',e=>{if((e.metaKey||e.ctrlKey)&&e.key==='Enter'){e.preventDefault();handleGenerate();}});
   promptArea.addEventListener('input',updateCharCount);
 
+  // === Chinese translation sync ===
+  let cnTimer=null, enTimer=null, lastEnSrc='', lastCnSrc='';
+  function cnTranslateDir(dir,text){
+    if(!text.trim())return;
+    const dsKey=$('dsApiKey').value.trim();
+    if(!dsKey){cnSyncHint.style.display='none';return;}
+    cnSyncHint.style.display='flex';
+    const sysMsg=dir==='en2cn'
+      ?'Translate the following English image generation prompt to Chinese. Keep it natural and concise. Output ONLY the Chinese translation, nothing else.'
+      :'Translate the following Chinese text to English as an image generation prompt. Make it a detailed, professional English prompt for GPT-Image-2. Output ONLY the English prompt, nothing else.';
+    fetch(DS_BASE_URL,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+dsKey},body:JSON.stringify({model:'deepseek-chat',messages:[{role:'system',content:sysMsg},{role:'user',content:text}],max_tokens:2048,temperature:0.3})})
+    .then(r=>r.json()).then(d=>{
+      cnSyncHint.style.display='none';
+      if(d.error){return;}
+      const result=d.choices[0].message.content.trim();
+      if(!result)return;
+      if(dir==='en2cn'){lastCnSrc=result;cnTranslate.value=result;cnTranslate.classList.remove('editing');}
+      else{lastEnSrc=result;promptArea.value=result;updateCharCount();}
+    }).catch(()=>{cnSyncHint.style.display='none';});
+  }
+  promptArea.addEventListener('input',()=>{
+    if(enTimer)clearTimeout(enTimer);
+    enTimer=setTimeout(()=>{
+      const txt=promptArea.value.trim();
+      if(txt&&txt!==lastEnSrc){lastEnSrc=txt;cnTranslateDir('en2cn',txt);}
+    },1500);
+  });
+  cnTranslate.addEventListener('input',()=>{
+    cnTranslate.classList.add('editing');
+    if(cnTimer)clearTimeout(cnTimer);
+    cnTimer=setTimeout(()=>{
+      const txt=cnTranslate.value.trim();
+      if(txt&&txt!==lastCnSrc){lastCnSrc=txt;cnTranslateDir('cn2en',txt);}
+    },1500);
+  });
+
   // API key
   keyToggle.addEventListener('click',()=>{const isP=apiKeyInput.type==='password';apiKeyInput.type=isP?'text':'password';keyToggle.textContent=isP?'🔒':'👁';});
   apiKeyInput.addEventListener('input',saveSettings);
@@ -1434,6 +1483,8 @@ async function dsCall(messages,showLoading=true){
   finally{if(showLoading) btns.forEach(id=>{const b=$(id);if(b)b.disabled=false;});}
 }
 
+function syncCnAfterEnChange(){const t=promptArea.value.trim();if(t&&t!==lastEnSrc){lastEnSrc=t;cnTranslateDir('en2cn',t);}}
+
 async function dsTranslate(){
   const txt=promptArea.value.trim();
   if(!txt){showToast('请先输入提示词','error');return;}
@@ -1442,7 +1493,7 @@ async function dsTranslate(){
     {role:'system',content:'You are a professional AI image prompt translator. Translate the following Chinese text into an optimized English prompt for GPT-Image-2. Output ONLY the English prompt, no explanation.'},
     {role:'user',content:txt}
   ]);
-  if(result){promptArea.value=result;updateCharCount();showToast('翻译完成！','success');}
+  if(result){promptArea.value=result;updateCharCount();showToast('翻译完成！','success');syncCnAfterEnChange();}
 }
 
 async function dsEnhance(){
@@ -1453,7 +1504,7 @@ async function dsEnhance(){
     {role:'system',content:'You are an expert AI image prompt engineer. Enhance and expand the following prompt to create more detailed, visually stunning images. Add specific details about lighting, composition, style, color, and quality. Output ONLY the enhanced English prompt, no explanation.'},
     {role:'user',content:txt}
   ]);
-  if(result){promptArea.value=result;updateCharCount();showToast('增强完成！','success');}
+  if(result){promptArea.value=result;updateCharCount();showToast('增强完成！','success');syncCnAfterEnChange();}
 }
 
 async function dsAutoGenerate(){
@@ -1464,7 +1515,7 @@ async function dsAutoGenerate(){
     {role:'system',content:'You are an expert AI image prompt engineer. The user will give you a short description or idea. Generate a complete, detailed, professional English prompt for GPT-Image-2. Include specific visual details: subject, style, lighting, composition, color palette, and quality keywords. Output ONLY the prompt, no explanation.'},
     {role:'user',content:txt}
   ]);
-  if(result){promptArea.value=result;updateCharCount();showToast('提示词生成完成！','success');}
+  if(result){promptArea.value=result;updateCharCount();showToast('提示词生成完成！','success');syncCnAfterEnChange();}
 }
 
 async function dsPolishPrompt(idx){
@@ -1491,7 +1542,7 @@ async function dsPolishPrompt(idx){
       promptArea.value=result;
       updateCharCount();
       promptArea.focus();
-      showToast('润色完成，已填入提示词！','success');
+      showToast('润色完成，已填入提示词！','success');syncCnAfterEnChange();
     }
   }catch(e){showToast('润色请求失败: '+e.message,'error');}
   finally{if(polishBtn) polishBtn.disabled=false;}
@@ -1509,7 +1560,7 @@ async function dsStructOptimize(){
     {role:'system',content:'You are an expert AI image prompt engineer. Optimize the following structured prompt for GPT-Image-2. Make it more detailed and professional while keeping the same intent. Output ONLY the optimized prompt as plain text, no explanation, no labels.'},
     {role:'user',content:'Subject: '+subject+'\nStyle/Attributes: '+attr+'\nLayout/Relation: '+relation+'\nConstraints: '+constraint+'\nCurrent preview: '+current}
   ],true);
-  if(result){promptArea.value=result;updateCharCount();$('structModal').classList.remove('active');showToast('优化完成，已填入提示词！','success');}
+  if(result){promptArea.value=result;updateCharCount();$('structModal').classList.remove('active');showToast('优化完成，已填入提示词！','success');syncCnAfterEnChange();}
 }
 
 // ============ Prompt Library ============

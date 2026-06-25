@@ -65,7 +65,7 @@ function logError(message, source = '', details = null) {
   });
   if (state.errorLog.length > 100) state.errorLog = state.errorLog.slice(-100);
 }
-const $=id=>document.getElementById(id);
+let $=id=>document.getElementById(id);
 // ===== 安全包装器 v2（不拦截已存在元素） =====
 (function() {
   var _orig$ = $;

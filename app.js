@@ -468,7 +468,18 @@ function bindEvents(){
   });
   $('refUrlAdd').addEventListener('click',()=>{const inp=$('refUrlInput');const url=inp.value.trim();if(url){addRefImageFromUrl(url);inp.value='';}});
 refInput.addEventListener('change',()=>{addRefImagesFromFiles(refInput.files);refInput.value='';});
-  const refUploadBtn=document.getElementById('refUploadBtn');if(refUploadBtn){refUploadBtn.addEventListener('click',()=>{if(/iPhone|iPad|Android/i.test(navigator.userAgent)){refInput.setAttribute('capture','environment');}refInput.click();});}
+  const refUploadBtn=$('refUploadBtn');if(refUploadBtn){refUploadBtn.addEventListener('click',()=>{refInput.removeAttribute('capture');refInput.click();});}
+
+// 拍照按钮：设置 capture 打开摄像头
+(function(){
+  var camBtn = $('refCameraBtn');
+  if(camBtn && refInput) {
+    camBtn.addEventListener('click', function() {
+      refInput.setAttribute('capture', 'environment');
+      refInput.click();
+    });
+  }
+})();
 
   // Drag & drop on ref zone
   ['dragenter','dragover'].forEach(ev=>{if(refDropZone)refDropZone.addEventListener(ev,e=>{e.preventDefault();e.stopPropagation();refDropZone.classList.add('active');});});

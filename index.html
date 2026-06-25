@@ -29,7 +29,7 @@
         <div class="inspire-filter-row" id="filterRow">
           <button class="filter-chip active" data-model="all">全部</button>
           <button class="filter-chip" data-model="gpt-image-2">gpt-image-2</button>
-          <button class="filter-chip" data-model="gpt-image-2-vip">gpt-image-2-vip</button>
+          
           <button class="filter-chip" data-tab="favs" id="favFilter">收藏</button>
         </div>
       </div>
@@ -119,6 +119,70 @@ window.addEventListener('beforeinstallprompt', function(e) {
   }, 3000);
 });
 </script>
+
+
+<!-- Hidden elements for JS compatibility -->
+<div id="sizeGrid" hidden></div>
+<div id="refDropZone" hidden></div>
+<span id="charCount" hidden></span>
+<button id="viewerPrev" hidden></button>
+<button id="viewerNext" hidden></button>
+<span id="sizeVipHint" hidden></span>
+<button id="dsKeyToggle" hidden></button>
+<button id="negPresetsBtn" hidden></button>
+<div id="negPresetsPanel" hidden></div>
+<button id="negApplyBtn" hidden></button>
+<div id="refCameraBtn" hidden></div>
+<select id="modelSelect" hidden></select>
+<div id="enhanceBtn" hidden></div>
+<div id="promptArea" hidden></div>
+
+<!-- JS compatibility hidden elements -->
+<div id="sizeGrid" style="display:none"></div>
+<span id="charCount" style="display:none"></span>
+<button id="viewerPrev" style="display:none"></button>
+<button id="viewerNext" style="display:none"></button>
+<span id="sizeVipHint" style="display:none"></span>
+<button id="dsKeyToggle" style="display:none"></button>
+<button id="negPresetsBtn" style="display:none"></button>
+<div id="negPresetsPanel" style="display:none"></div>
+<button id="negApplyBtn" style="display:none"></button>
+<div id="enhanceBtn" style="display:none"></div>
+<textarea id="promptArea" style="display:none"></textarea>
+<select id="modelSelect" style="display:none"><option value="gpt-image-2">gpt-image-2</option></select>
+<div id="refDropZone" style="display:none"></div>
+
+
+<div id="sizeGrid" style="display:none"></div>
+<span id="charCount" style="display:none"></span>
+<button id="viewerPrev" style="display:none"></button>
+<button id="viewerNext" style="display:none"></button>
+<span id="sizeVipHint" style="display:none"></span>
+<button id="dsKeyToggle" style="display:none"></button>
+<button id="negPresetsBtn" style="display:none"></button>
+<div id="negPresetsPanel" style="display:none"></div>
+<button id="negApplyBtn" style="display:none"></button>
+<select id="modelSelect" style="display:none"><option value="gpt-image-2">gpt-image-2</option></select>
+<div id="refDropZone" style="display:none"></div>
+
+<!-- 兼容旧JS的隐藏元素 -->
+<span id="taskCount" style="display:none">0</span>
+<span id="failedCount" style="display:none">0</span>
+<button id="viewerPrev" style="display:none"></button>
+<button id="viewerNext" style="display:none"></button>
+<select id="modelSelect" style="display:none">
+  <option value="gpt-image-2">gpt-image-2</option>
+</select>
+<button id="enhanceBtn" style="display:none"></button>
+<button id="negPresetsBtn" style="display:none"></button>
+<div id="negPresetsPanel" style="display:none"></div>
+<button id="negApplyBtn" style="display:none"></button>
+<button id="dsKeyToggle" style="display:none"></button>
+<div id="refDropZone" style="display:none"></div>
+<div id="sizeGrid" style="display:none"></div>
+<span id="sizeVipHint" style="display:none"></span>
+<span id="charCount" style="display:none"></span>
+<textarea id="promptArea" style="display:none"></textarea>
 
 </body>
 </html>

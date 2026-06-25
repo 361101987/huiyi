@@ -66,6 +66,41 @@ function logError(message, source = '', details = null) {
   if (state.errorLog.length > 100) state.errorLog = state.errorLog.slice(-100);
 }
 const $=id=>document.getElementById(id);
+// ===== 防崩溃安全包装 =====
+(function() {
+  var _orig$ = $;
+  $ = function(id) {
+    var el = _orig$(id);
+    if (!el) {
+      console.warn('[绘漪] 元素未找到:', id);
+      return {
+        addEventListener: function() {},
+        classList: { add: function(){}, remove: function(){}, toggle: function(){}, contains: function(){return false} },
+        style: {},
+        value: '',
+        type: 'text',
+        textContent: '',
+        disabled: false,
+        closest: function() { return null; },
+        querySelector: function() { return null; },
+        querySelectorAll: function() { return []; },
+        appendChild: function() {},
+        removeChild: function() {},
+        insertBefore: function() {},
+        replaceChild: function() {},
+        setAttribute: function() {},
+        getAttribute: function() { return null; },
+        removeAttribute: function() {},
+        contains: function() { return false; },
+        focus: function() {},
+        blur: function() {},
+        click: function() {}
+      };
+    }
+    return el;
+  };
+})();
+
 const apiKeyInput=$('apiKey'), keyToggle=$('keyToggle'), modelSelect=$('model');
 const sizeGrid=$('sizeGrid'), refImagesDiv=$('refImages'), refInput=$('refInput');
 const refDropZone=$('refDropZone'), promptArea=$('prompt'), generateBtn=$('generateBtn');
@@ -397,8 +432,8 @@ function updateCharCount(){charCount.textContent=`${promptArea.value.length} 字
 // ============ Event Bindings ============
 function bindEvents(){
   // Generate
-  generateBtn.addEventListener('click',handleGenerate);
-  enhanceBtn.addEventListener('click',enhancePrompt);
+  if(generateBtn)generateBtn.addEventListener('click',handleGenerate);
+  if(enhanceBtn)enhanceBtn.addEventListener('click',enhancePrompt);
   promptArea.addEventListener('keydown',e=>{if((e.metaKey||e.ctrlKey)&&e.key==='Enter'&&!generateBtn.disabled){e.preventDefault();handleGenerate();}});
   promptArea.addEventListener('input',()=>{updateCharCount();promptArea.style.height='auto';promptArea.style.height=promptArea.scrollHeight+'px';});
 
@@ -411,7 +446,7 @@ function bindEvents(){
   document.querySelectorAll('.node-btn').forEach(btn=>{btn.addEventListener('click',()=>{document.querySelectorAll('.node-btn').forEach(b=>b.classList.remove('active'));btn.classList.add('active');state.node=btn.dataset.node;saveSettings();});});
 
   // Model
-  modelSelect.addEventListener('change',()=>{
+  if(modelSelect)modelSelect.addEventListener('change',()=>{
     state.model=modelSelect.value;
     if(state.model!=='gpt-image-2-vip'&&state.selectedQuality!=='1K')state.selectedQuality='1K';
     const vipHint=$('sizeVipHint');if(vipHint)vipHint.classList.toggle('show',state.model!=='gpt-image-2-vip');
@@ -420,7 +455,7 @@ function bindEvents(){
   });
 
   // Size
-  sizeGrid.addEventListener('click',e=>{const btn=e.target.closest('.size-btn');if(!btn)return;state.selectedRatio=btn.dataset.ratio;state.selectedQuality=btn.dataset.quality;state.selectedSize=btn.dataset.px;renderSizeGrid();saveSettings();});
+  if(sizeGrid)sizeGrid.addEventListener('click',e=>{const btn=e.target.closest('.size-btn');if(!btn)return;state.selectedRatio=btn.dataset.ratio;state.selectedQuality=btn.dataset.quality;state.selectedSize=btn.dataset.px;renderSizeGrid();saveSettings();});
 
   // Reference images - click
   refImagesDiv.addEventListener('click',async e=>{
@@ -432,9 +467,9 @@ refInput.addEventListener('change',()=>{addRefImagesFromFiles(refInput.files);re
   const refUploadBtn=document.getElementById('refUploadBtn');if(refUploadBtn){refUploadBtn.addEventListener('click',()=>{if(/iPhone|iPad|Android/i.test(navigator.userAgent)){refInput.setAttribute('capture','environment');}refInput.click();});}
 
   // Drag & drop on ref zone
-  ['dragenter','dragover'].forEach(ev=>{refDropZone.addEventListener(ev,e=>{e.preventDefault();e.stopPropagation();refDropZone.classList.add('active');});});
-  ['dragleave','drop'].forEach(ev=>{refDropZone.addEventListener(ev,e=>{e.preventDefault();e.stopPropagation();refDropZone.classList.remove('active');});});
-  refDropZone.addEventListener('drop',e=>{const files=e.dataTransfer.files;if(files.length)addRefImagesFromFiles(files);});
+  ['dragenter','dragover'].forEach(ev=>{if(refDropZone)refDropZone.addEventListener(ev,e=>{e.preventDefault();e.stopPropagation();refDropZone.classList.add('active');});});
+  ['dragleave','drop'].forEach(ev=>{if(refDropZone)refDropZone.addEventListener(ev,e=>{e.preventDefault();e.stopPropagation();refDropZone.classList.remove('active');});});
+  if(refDropZone)refDropZone.addEventListener('drop',e=>{const files=e.dataTransfer.files;if(files.length)addRefImagesFromFiles(files);});
   // Also allow drop on ref images area
   ['dragenter','dragover'].forEach(ev=>{refImagesDiv.addEventListener(ev,e=>{e.preventDefault();e.stopPropagation();refDropZone.classList.add('active');});});
   ['dragleave','drop'].forEach(ev=>{refImagesDiv.addEventListener(ev,e=>{e.preventDefault();e.stopPropagation();refDropZone.classList.remove('active');});});
@@ -536,7 +571,7 @@ refInput.addEventListener('change',()=>{addRefImagesFromFiles(refInput.files);re
     const body=$('dsBody'),arrow=$('dsArrow');
     body.classList.toggle('open');arrow.classList.toggle('open');
   });
-  $('dsKeyToggle').addEventListener('click',()=>{
+  var _btn=$("dsKeyToggle");if(_btn)$('dsKeyToggle').addEventListener('click',()=>{
     const inp=$('dsApiKey');
     inp.type=inp.type==='password'?'text':'password';
   });

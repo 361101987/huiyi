@@ -66,38 +66,42 @@ function logError(message, source = '', details = null) {
   if (state.errorLog.length > 100) state.errorLog = state.errorLog.slice(-100);
 }
 const $=id=>document.getElementById(id);
-// ===== 防崩溃安全包装 =====
+// ===== 安全包装器 v2（不拦截已存在元素） =====
 (function() {
   var _orig$ = $;
   $ = function(id) {
     var el = _orig$(id);
-    if (!el) {
-      console.warn('[绘漪] 元素未找到:', id);
-      return {
-        addEventListener: function() {},
-        classList: { add: function(){}, remove: function(){}, toggle: function(){}, contains: function(){return false} },
-        style: {},
-        value: '',
-        type: 'text',
-        textContent: '',
-        disabled: false,
-        closest: function() { return null; },
-        querySelector: function() { return null; },
-        querySelectorAll: function() { return []; },
-        appendChild: function() {},
-        removeChild: function() {},
-        insertBefore: function() {},
-        replaceChild: function() {},
-        setAttribute: function() {},
-        getAttribute: function() { return null; },
-        removeAttribute: function() {},
-        contains: function() { return false; },
-        focus: function() {},
-        blur: function() {},
-        click: function() {}
-      };
-    }
-    return el;
+    if (el) return el;  // 元素存在，直接返回
+    // 元素不存在时，返回无害的 mock 对象
+    console.warn('[绘漪] DOM 缺失:', id, '- 已用 mock 对象代替，功能可能不完整');
+    return {
+      addEventListener: function() {},
+      removeEventListener: function() {},
+      classList: { add: function(){}, remove: function(){}, toggle: function(){}, contains: function(){return false} },
+      style: { setProperty: function(){}, removeProperty: function(){} },
+      value: '',
+      type: 'text',
+      textContent: '',
+      innerHTML: '',
+      innerText: '',
+      disabled: false,
+      checked: false,
+      files: null,
+      closest: function() { return null; },
+      querySelector: function() { return null; },
+      querySelectorAll: function() { return []; },
+      appendChild: function() {},
+      removeChild: function() {},
+      insertBefore: function() {},
+      replaceWith: function() {},
+      setAttribute: function() {},
+      getAttribute: function() { return null; },
+      removeAttribute: function() {},
+      contains: function() { return false; },
+      focus: function() {},
+      blur: function() {},
+      click: function() {}
+    };
   };
 })();
 
